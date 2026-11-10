@@ -1,0 +1,66 @@
+{% extends 'food_menu_app/base.html' %}
+{% load static %}
+
+{% block title %}Chat with {{ conversation.name }} | FoodMenuApp{% endblock %}
+
+{% block content %}
+    <a href="{% url 'chat-inbox' %}" class="mb-8 inline-flex font-semibold text-emerald-800 hover:text-emerald-950">
+        &larr; Back to inbox
+    </a>
+    <section class="mx-auto max-w-3xl">
+        <div class="mb-5 flex items-center gap-3">
+            {% if user.profile.profile_image %}
+                <img src="{{ user.profile.profile_image.url }}" alt="" class="h-12 w-12 rounded-full border border-emerald-950/10 object-cover">
+            {% else %}
+                <span class="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 font-bold text-emerald-900" aria-hidden="true">{{ user.username|first|upper }}</span>
+            {% endif %}
+            <div>
+                <p class="text-sm font-semibold text-emerald-800">Staff: @{{ user.username }}</p>
+                <p class="text-xs text-stone-500">Replying to {{ conversation.name }}</p>
+            </div>
+        </div>
+        <div class="mb-5 rounded-xl border border-stone-200 bg-white px-4 py-3">
+            <h1 class="text-3xl font-extrabold tracking-tight text-emerald-950">{{ conversation.name }}</h1>
+            <p class="mt-1 text-stone-600">{{ conversation.email }}</p>
+        </div>
+        <ol id="staff-chat-transcript"
+            data-messages-url="{% url 'staff-chat-messages' conversation.pk %}"
+            data-last-id="{{ chat_messages.last.pk|default:0 }}"
+            class="mb-5 max-h-[60vh] space-y-3 overflow-y-auto rounded-2xl border border-emerald-950/10 bg-white p-5">
+            {% for message in chat_messages %}
+                <li data-message-id="{{ message.pk }}" class="rounded-xl p-3 {% if message.sender == 'admin' %}ml-10 bg-emerald-100{% elif message.sender == 'visitor' %}mr-10 bg-amber-100{% else %}mr-10 bg-stone-100{% endif %}">
+                    <div class="mb-2 flex items-center gap-2">
+                        {% if message.sender_user.profile.profile_image %}
+                            <img src="{{ message.sender_user.profile.profile_image.url }}" alt="" class="h-8 w-8 rounded-full object-cover">
+                        {% elif message.sender == 'visitor' and conversation.user.profile.profile_image %}
+                            <img src="{{ conversation.user.profile.profile_image.url }}" alt="" class="h-8 w-8 rounded-full object-cover">
+                        {% else %}
+                            <span class="flex h-8 w-8 items-center justify-center rounded-full bg-white text-xs font-bold text-emerald-900" aria-hidden="true">
+                                {% if message.sender_user %}{{ message.sender_user.username|first|upper }}{% elif message.sender == 'visitor' and conversation.user %}{{ conversation.user.username|first|upper }}{% elif message.sender == 'visitor' %}{{ conversation.name|first|upper }}{% else %}{{ message.get_sender_display|first|upper }}{% endif %}
+                            </span>
+                        {% endif %}
+                        <p class="text-xs font-bold text-stone-700">
+                            {% if message.sender == 'bot' %}FoodMenu Assistant{% elif message.sender_user %}@{{ message.sender_user.username }}{% elif message.sender == 'visitor' and conversation.user %}@{{ conversation.user.username }}{% elif message.sender == 'visitor' %}{{ conversation.name }}{% else %}Staff{% endif %}
+                            · {{ message.created_at|date:"M j, g:i a" }}
+                        </p>
+                    </div>
+                    <p class="mt-1 whitespace-pre-wrap text-sm text-stone-800">{{ message.message }}</p>
+                </li>
+            {% endfor %}
+        </ol>
+        <p id="staff-chat-status" class="mb-3 text-sm text-stone-600" role="status"></p>
+        <form method="post" class="space-y-3 rounded-2xl border border-emerald-950/10 bg-white p-5">
+            {% csrf_token %}
+            <label for="{{ form.message.id_for_label }}" class="block text-sm font-semibold text-stone-700">Reply to customer</label>
+            <textarea id="{{ form.message.id_for_label }}" name="{{ form.message.html_name }}" rows="3" maxlength="2000" required
+                      class="w-full rounded-lg border border-stone-300 px-3 py-2 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20">{{ form.message.value|default:'' }}</textarea>
+            {% if form.message.errors %}
+                <p class="text-sm text-red-700">{{ form.message.errors }}</p>
+            {% endif %}
+            <button type="submit" class="rounded-lg bg-emerald-800 px-5 py-3 font-semibold text-white hover:bg-emerald-900">
+                Send reply
+            </button>
+        </form>
+    </section>
+    <script src="{% static 'food_menu_app/staff-chat.js' %}" defer></script>
+{% endblock %}

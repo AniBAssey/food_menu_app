@@ -1,0 +1,85 @@
+{% extends 'food_menu_app/base.html' %}
+{% load static %}
+
+{% block title %}{{ item.item_name }} | FoodMenuApp{% endblock %}
+
+{% block content %}
+    <a href="{% url 'index' %}" class="mb-8 inline-flex font-semibold text-emerald-800 hover:text-emerald-950 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-600">
+        &larr; Back to the menu
+    </a>
+    <article class="max-w-3xl rounded-3xl border border-emerald-950/10 bg-white p-7 shadow-sm sm:p-10">
+        <p class="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-amber-700">From our menu</p>
+        <h1 class="text-4xl font-extrabold tracking-tight text-emerald-950 sm:text-5xl">{{ item.item_name }}</h1>
+        {% if item.item_image_src %}
+            <img src="{{ item.item_image_src }}" alt="{{ item.item_name }}"
+                 class="mt-7 aspect-[4/3] w-full rounded-2xl object-cover">
+        {% endif %}
+        <div class="mt-4 flex flex-wrap items-center gap-3" aria-label="Average customer rating">
+            <span class="flex text-2xl leading-none tracking-wide" aria-hidden="true">
+                {% for star in "12345" %}
+                    <span class="{% if forloop.counter <= item.rating_stars %}text-amber-500{% else %}text-amber-200{% endif %}">★</span>
+                {% endfor %}
+            </span>
+            {% if item.rating_count %}
+                <span class="text-sm text-stone-600">{{ item.rating_average|floatformat:1 }} / 5 ({{ item.rating_count }} rating{{ item.rating_count|pluralize }})</span>
+            {% endif %}
+        </div>
+        <section class="mt-6 border-t border-stone-200 pt-5" aria-labelledby="rate-item-heading">
+            <h2 id="rate-item-heading" class="text-lg font-bold text-emerald-950">Rate this item</h2>
+            {% if user.is_authenticated %}
+                <form method="post" action="{% url 'rate-item' item.id %}" class="mt-3 flex flex-wrap items-end gap-4">
+                    {% csrf_token %}
+                    <fieldset id="item-rating" data-initial-rating="{{ user_rating|default:0 }}" class="min-w-0">
+                        <legend class="mb-1 text-sm font-semibold text-stone-700">
+                            Your rating{% if user_rating %} (currently {{ user_rating }}/5){% endif %}
+                        </legend>
+                        <div class="flex items-center gap-1" role="radiogroup" aria-label="Rate {{ item.item_name }}">
+                            {% for score, label in rating_choices %}
+                                <input class="sr-only" type="radio" name="score" id="rating-{{ score }}"
+                                       value="{{ score }}" aria-label="{{ score }} stars: {{ label }}"
+                                       {% if user_rating == score %}checked{% endif %} required>
+                                <label for="rating-{{ score }}" data-rating-star="{{ score }}"
+                                       class="cursor-pointer rounded text-4xl leading-none text-stone-300 transition-colors hover:text-amber-500 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-amber-600"
+                                       title="{{ label }}" aria-hidden="true">★</label>
+                            {% endfor %}
+                        </div>
+                        <p id="rating-description" class="mt-1 min-h-5 text-sm text-stone-600" aria-live="polite">
+                            {% if user_rating %}{{ rating_label }}{% else %}Choose a star rating{% endif %}
+                        </p>
+                    </fieldset>
+                    <button type="submit" class="rounded-lg bg-emerald-800 px-4 py-2 font-semibold text-white hover:bg-emerald-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-600">
+                        {% if user_rating %}Update rating{% else %}Submit rating{% endif %}
+                    </button>
+                </form>
+            {% else %}
+                <p class="mt-2 text-sm text-stone-600">
+                    <a class="font-semibold text-emerald-800 underline" href="{% url 'login' %}?next={{ request.path }}">Log in</a>
+                    to rate this item.
+                </p>
+            {% endif %}
+        </section>
+        <p class="mt-6 whitespace-pre-line leading-8 text-stone-600">{{ item.item_desc }}</p>
+        <p class="mt-8 inline-flex rounded-full bg-amber-100 px-4 py-2 text-lg font-extrabold text-amber-950">
+            Price: ${{ item.item_price }}
+        </p>
+        <section class="mt-6 border-t border-stone-200 pt-6">
+            <a href="{% url 'item-comments' item.id %}" class="inline-flex items-center gap-2 font-semibold text-emerald-800 hover:text-emerald-950">
+                Customer comments
+                <span class="rounded-full bg-amber-100 px-2 py-1 text-sm text-amber-950">
+                    {{ comments_count }}
+                </span>
+            </a>
+        </section>
+        {% if user.is_authenticated and user == item.user_name %}
+            <div class="mt-6 flex flex-wrap gap-3">
+                <a href="{% url 'edit-item' item.id %}" class="inline-flex rounded-lg border border-emerald-800 px-4 py-2 font-semibold text-emerald-900 hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-600">
+                    Edit item
+                </a>
+                <a href="{% url 'delete_item' item.id %}" class="inline-flex rounded-lg border border-red-700 bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-600">
+                    Delete item
+                </a>
+            </div>
+        {% endif %}
+    </article>
+    <script src="{% static 'food_menu_app/rating.js' %}" defer></script>
+{% endblock %}

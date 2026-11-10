@@ -1,0 +1,12 @@
+# Python / Django
+*.pyc
+__pycache__/
+db.sqlite3
+media/
+env/
+venv/
+.venv/
+*.log
+
+# Environment variables / Secrets
+.env

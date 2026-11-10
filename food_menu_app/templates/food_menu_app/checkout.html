@@ -1,0 +1,84 @@
+{% extends 'food_menu_app/base.html' %}
+
+{% block title %}Checkout | FoodMenuApp{% endblock %}
+
+{% block content %}
+    <!-- Review server-priced session cart lines before using the PayPal buttons configured in mysite/settings.py. -->
+    <section class="mx-auto max-w-3xl">
+        <p class="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-amber-700">Secure checkout</p>
+        <h1 class="text-4xl font-extrabold tracking-tight text-emerald-950 sm:text-5xl">Review your order</h1>
+
+        <ul class="mt-8 divide-y divide-emerald-950/10 rounded-2xl border border-emerald-950/10 bg-white px-5 shadow-sm">
+            {% for cart_line in cart_items %}
+                <li class="flex justify-between gap-4 py-4">
+                    <span class="text-stone-700">{{ cart_line.quantity }} × {{ cart_line.item.item_name }}</span>
+                    <span class="font-semibold text-emerald-950">&#36;{{ cart_line.line_total|floatformat:2 }}</span>
+                </li>
+            {% endfor %}
+        </ul>
+        <p class="mt-5 text-right text-2xl font-extrabold text-emerald-950">
+            Total: &#36;{{ cart_total|floatformat:2 }} USD
+        </p>
+
+        {% if paypal_enabled %}
+            <!-- Load PayPal's client SDK with the public client ID; private credentials stay in the server helper. -->
+            <div class="mt-8 rounded-2xl border border-emerald-950/10 bg-white p-6 shadow-sm">
+                <p class="mb-4 text-sm text-stone-600">PayPal {{ paypal_mode }} checkout</p>
+                <form class="hidden">{% csrf_token %}</form>
+                <div id="paypal-button-container"></div>
+                <p id="paypal-error" class="mt-4 text-sm text-red-700" role="alert"></p>
+            </div>
+            <script src="https://www.paypal.com/sdk/js?client-id={{ paypal_client_id|urlencode }}&currency=USD&intent=capture"></script>
+            <!-- Create and capture orders through CSRF-protected Django endpoints; never trust browser-supplied totals. -->
+            <script>
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                const errorElement = document.getElementById('paypal-error');
+                const postPayment = async (url, body) => {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify(body || {})
+                    });
+                    const result = await response.json();
+                    if (!response.ok) {
+                        throw new Error(result.error || 'Payment could not be completed.');
+                    }
+                    return result;
+                };
+
+                paypal.Buttons({
+                    createOrder: async () => {
+                        errorElement.textContent = '';
+                        const result = await postPayment("{% url 'paypal-create-order' %}");
+                        return result.id;
+                    },
+                    onApprove: async (data) => {
+                        try {
+                            const result = await postPayment(
+                                "{% url 'paypal-capture-order' %}",
+                                {orderID: data.orderID}
+                            );
+                            window.location.assign(result.redirect_url);
+                        } catch (error) {
+                            errorElement.textContent = error.message;
+                        }
+                    },
+                    onError: (error) => {
+                        errorElement.textContent = error.message || 'PayPal checkout encountered an error.';
+                    }
+                }).render('#paypal-button-container');
+            </script>
+        {% else %}
+            <p class="mt-8 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950" role="status">
+                PayPal checkout is unavailable. Configure PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in your environment.
+            </p>
+        {% endif %}
+
+        <a href="{% url 'cart' %}" class="mt-8 inline-flex rounded-lg border border-emerald-800 px-4 py-2 font-semibold text-emerald-900 transition hover:bg-emerald-50">
+            Return to cart
+        </a>
+    </section>
+{% endblock %}

@@ -1,0 +1,106 @@
+{% extends 'food_menu_app/base.html' %}
+
+{% block title %}Menu | FoodMenuApp{% endblock %}
+
+{% block content %}
+    <section class="mb-10">
+        <p class="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-amber-700">Freshly prepared</p>
+        <h1 class="max-w-3xl text-4xl font-extrabold tracking-tight text-emerald-950 sm:text-6xl">
+            {{ title }}
+        </h1>
+        <p class="mt-5 max-w-2xl text-lg leading-8 text-stone-600">
+            Explore the menu and select a dish to see its details.
+        </p>
+    </section>
+
+    {% if items %}
+        <ul class="grid gap-4 sm:grid-cols-2">
+            {% for item in items %}
+                <li class="group rounded-2xl border border-emerald-950/10 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-emerald-800/30 hover:shadow-lg">
+                    {% if item.item_image_src %}
+                        <a href="{% url 'item-detail' item.id %}" class="mb-5 block overflow-hidden rounded-2xl bg-amber-50">
+                            <img src="{{ item.item_image_src }}" alt="{{ item.item_name }}"
+                                 class="aspect-[4/3] w-full rounded-2xl object-cover transition duration-300 group-hover:scale-[1.02]">
+                        </a>
+                    {% endif %}
+                    <div class="mb-3 flex items-center gap-2" aria-label="Average customer rating">
+                        <span class="flex text-xl leading-none tracking-wide" aria-hidden="true">
+                            {% for star in "12345" %}
+                                <span class="{% if forloop.counter <= item.rating_stars %}text-amber-500{% else %}text-amber-200{% endif %}">★</span>
+                            {% endfor %}
+                        </span>
+                        {% if item.rating_count %}
+                            <span class="text-sm text-stone-600">{{ item.rating_average|floatformat:1 }} / 5 ({{ item.rating_count }} rating{{ item.rating_count|pluralize }})</span>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center justify-between gap-4">
+                        <a href="{% url 'item-detail' item.id %}"
+                           class="text-xl font-bold text-emerald-900 group-hover:text-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-600">
+                            {{ item.item_name|upper }}
+                        </a>
+                        <span class="shrink-0 rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-amber-900">
+                            &#36;{{ item.item_price }}
+                        </span>
+                    </div>
+                    <!-- Show menu data and creation time from the Items model. -->
+                    <p class="mt-3 text-sm leading-6 text-stone-600">
+                        {{ item.item_desc }}
+                    </p>
+                    <p class="mt-3 text-xs text-stone-500">
+                        <!-- Keep date-only records readable until their DateTimeField migration is applied. -->
+                        {% if item.created_at.hour or item.created_at.minute %}
+                            Added {{ item.created_at|date:"M j, Y, g:i a" }}
+                        {% else %}
+                            Added {{ item.created_at|date:"M j, Y" }}
+                        {% endif %}
+                    </p>
+                    <!-- Submit to food_menu_app.views.add_to_cart without replacing the item's detail link. -->
+                    {% if item.is_available and not item.is_deleted %}
+                        <form method="post" action="{% url 'add-to-cart' item.id %}" class="mt-4">
+                            {% csrf_token %}
+                            <!-- Select 1-9 units here; the server validates the submitted quantity in views.py. -->
+                            <label for="quantity-{{ item.id }}" class="mb-2 block text-sm font-semibold text-stone-700">
+                                Quantity
+                            </label>
+                            <div class="flex gap-3">
+                                <select id="quantity-{{ item.id }}" name="quantity" class="rounded-lg border border-stone-300 px-3 py-2 text-stone-800 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20">
+                                    {% for quantity in "123456789" %}
+                                        <option value="{{ quantity }}">{{ quantity }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="flex-1 rounded-lg bg-emerald-800 px-4 py-2 font-semibold text-white transition hover:bg-emerald-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-600">
+                                    Add to cart
+                                </button>
+                            </div>
+                        </form>
+                    {% else %}
+                        <p class="mt-4 text-sm font-semibold text-stone-500">Currently unavailable</p>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+        {% if page_obj.has_other_pages %}
+            <nav class="mt-8 flex items-center justify-center gap-4" aria-label="Menu pages">
+                {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}"
+                       class="rounded-lg border border-emerald-800 px-4 py-2 font-semibold text-emerald-900 hover:bg-emerald-50">
+                        Previous
+                    </a>
+                {% endif %}
+                <span class="text-sm text-stone-600">
+                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                </span>
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}"
+                       class="rounded-lg border border-emerald-800 px-4 py-2 font-semibold text-emerald-900 hover:bg-emerald-50">
+                        Next
+                    </a>
+                {% endif %}
+            </nav>
+        {% endif %}
+    {% else %}
+        <p class="rounded-2xl border border-emerald-950/10 bg-white p-6 text-stone-600 shadow-sm">
+            No items are available right now. Please check back soon.
+        </p>
+    {% endif %}
+{% endblock %}
